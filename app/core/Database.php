@@ -2,6 +2,7 @@
 
 namespace App\Core;
 use App\Config\Config;
+use Exception;
 use mysqli;
 
 
@@ -11,8 +12,12 @@ class Database {
 
     public function __construct() {
         $config = new Config();
+        try{
         $this->connection = new mysqli($config->host, $config->username, $config->password,$config->database);
-
+        }catch(Exception $e){
+            print_r($e);
+            die("Something went wrong in the database");
+        }
         if ($this->connection->connect_error) {
             die("Connection failed: " . $this->connection->connect_error);
         }
@@ -47,15 +52,46 @@ class Database {
         return $stmt;
     }
 
-    public function fetchAll($sql, $params = []) {
+    public function fetchAllSql($sql, $params = []) {
+
         $stmt = $this->query($sql, $params);
+
         $result = $stmt->get_result();
 
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function fetch($sql, $params = []) {
+    public function fetchOneSql($sql, $params = []) {
+
         $stmt = $this->query($sql, $params);
+
+        $result = $stmt->get_result();
+        return $result->fetch_assoc();
+    }
+
+    public function fetchAll($table, $where = []) {
+
+        $whereClause = implode(' AND ', array_map(fn($col) => "$col = ?", array_keys($where)));
+        $sql = "SELECT * FROM  $table WHERE $whereClause";
+
+        if(count($where)==0) $sql = "SELECT * FROM  $table";
+
+        $stmt = $this->query($sql, array_values($where));
+
+        $result = $stmt->get_result();
+
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function fetchOne($table, $where = []) {
+
+        $whereClause = implode(' AND ', array_map(fn($col) => "$col = ?", array_keys($where)));
+        $sql = "SELECT * FROM $table WHERE $whereClause";
+
+        if(count($where)==0) $sql = "SELECT * FROM  $table";
+
+        $stmt = $this->query($sql, array_values($where));
+
         $result = $stmt->get_result(); 
         return $result->fetch_assoc();
 
@@ -76,18 +112,18 @@ class Database {
         $whereClause = implode(' AND ', array_map(fn($col) => "$col = ?", array_keys($where)));
         $sql = "UPDATE $table SET $set WHERE $whereClause";
 
-        $this->query($sql, array_merge(array_values($data), array_values($where)));
+        $stmt =$this->query($sql, array_merge(array_values($data), array_values($where)));
 
-        return $this->connection->affected_rows;
+        return $stmt->affected_rows;
     }
 
     public function delete($table, $where) {
         $whereClause = implode(' AND ', array_map(fn($col) => "$col = ?", array_keys($where)));
         $sql = "DELETE FROM $table WHERE $whereClause";
 
-        $this->query($sql, array_values($where));
+        $stmt = $this->query($sql, array_values($where));
 
-        return $this->connection->affected_rows;
+        return $stmt->affected_rows;
     }
 
     public function close() {

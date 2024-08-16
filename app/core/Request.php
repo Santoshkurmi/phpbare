@@ -1,18 +1,21 @@
 <?php
 
 namespace App\Core;
+use App\Config\Config;
 use App\Core\Database;
 class Request {
     private $data;
     private static $instance = null;
     private $files;
+    private $config;
 
     private function __construct() {
         session_start(); // Start the session
+        $this->config = new Config();
 
         // Merge GET, POST, and other request data into a single array
         $this->data = array_merge($_GET, $_POST);
-        $this->files = $_FILES;
+        // $this->files = $_FILES;
     }
     public static function getInstance() {
         if (self::$instance === null) {
@@ -57,19 +60,57 @@ class Request {
     }
 
     // Method to handle file uploads
-    public function file($name) {
-        return $this->files[$name] ?? null; // Return the file if it exists, otherwise return null
+    public function getFile($name) {
+        return $_FILES[$name] ?? null; // Return the file if it exists, otherwise return null
     }
 
     // Method to check if a file was uploaded
     public function hasFile($name) {
-        return isset($this->files[$name]) && $this->files[$name]['error'] === UPLOAD_ERR_OK;
+        return isset($_FILES[$name]) && $_FILES[$name]['error'] === UPLOAD_ERR_OK;
     }
 
     // Method to retrieve file data (name, tmp_name, size, etc.)
-    public function fileData($name, $key) {
-        return $this->files[$name][$key] ?? null;
+    public function getTempPathOfFile($name) {
+        return $this->getFile($name)['tmp_name'];
     }
+
+    public function getFileExtension($name){
+        return strtolower( pathinfo($this->getFile($name)['name'],PATHINFO_EXTENSION) );
+    }
+    private function isImage($name){
+        return getimagesize($this->getTempPathOfFile($name));
+    }
+
+    public function isImageSupported($name){
+        if(!$this->isImage($name)) return false;
+        return in_array($this->getFileExtension($name),$this->config->allowedImageExtensions);
+    }
+
+    public function setupImageUploadDirectory(){
+        if (!is_dir($this->config->imageUplaodDirectory)) {
+            // Create the directory with proper permissions (e.g., 0755)
+            if (!mkdir($this->config->imageUplaodDirectory, 0755, true)) {
+                die("Failed to create directory.");
+            }
+        }
+    }
+
+    public function uploadImage($name){
+        $this->setupImageUploadDirectory();
+
+        $sourcePath = $this->getTempPathOfFile($name);
+
+        $imageName = $this->getFile($name)['name'].microtime(true);
+        $hashedName = hash('sha256',$imageName).".".$this->getFileExtension($name);
+
+        $destLocation = $this->config->imageUplaodDirectory.$hashedName;
+
+        $isUploaded =  move_uploaded_file($sourcePath,$destLocation);
+        if($isUploaded) return $hashedName;
+        else return null;
+    }
+
+    
 
     // Method to set a session variable
     public function setSession($key, $value) {

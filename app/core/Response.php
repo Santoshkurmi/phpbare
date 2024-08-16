@@ -8,11 +8,22 @@ class Response {
     private $data = null;
     private $viewPath = null;
     private $renderLayouts = true;
+    private $config;
+    private $footer=null,$header=null;
 
 
     public function __construct(){
-        $config = new Config();
-        $this->renderLayouts  = $config->renderLayoutByDefaults;
+        $this->config = new Config();
+        $this->renderLayouts  = $this->config->renderLayoutByDefaults;
+    }
+
+    public function withFooter($footerPath){
+        $this->footer = $footerPath;
+        return $this;
+    }
+    public function withHeader($headerPath){
+        $this->header = $headerPath;
+        return $this;
     }
     // Set the HTTP status code
     public function setStatusCode($code) {
@@ -42,7 +53,7 @@ class Response {
     }
 
     public function disableLayouts($isRender){
-        $this->renderLayouts = $isRender;
+        $this->renderLayouts = !$isRender;
         return $this;
     }
 
@@ -80,15 +91,30 @@ class Response {
             $user = $request->getUser();
 
             if($this->renderLayouts){
-            require_once __DIR__ . '/../views/layouts/header.php';
+            if($this->header)
+                require_once __DIR__ . '/../views/'.$this->header.".php";     
+            else
+                require_once __DIR__ . '/../views/'.$this->config->headerLayoutPath.".php";
+           
             require_once __DIR__ . '/../views/' . $this->viewPath . '.php';
-            require_once __DIR__ . '/../views/layouts/footer.php';
+            
+            if($this->footer)
+                require_once __DIR__ . '/../views/'.$this->footer.".php";
+            else
+                require_once __DIR__ . '/../views/'.$this->config->footerLayoutPath.".php";
             return;
-
             }
             
-            // Include the view file
+            if($this->header)
+                require_once __DIR__ . '/../views/'.$this->header.".php";     
+           
             require_once __DIR__ . '/../views/' . $this->viewPath . '.php';
+            
+            if($this->footer)
+                require_once __DIR__ . '/../views/'.$this->footer.".php";
+            
+            // Include the view file
+            // require_once __DIR__ . '/../views/' . $this->viewPath . '.php';
         } elseif ($this->data !== null) {
             echo json_encode($this->data);
         }
