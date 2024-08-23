@@ -3,6 +3,7 @@
 namespace Phphelper\Core;
 
 
+use Closure;
 use Dotenv\Dotenv;
 
 
@@ -30,13 +31,14 @@ class Router
 
     public static function get($path, $controllerAction,$authType="any",$ifNotAuthRedirectTo='default_from_.env')
     {
+
+        // echo "HEllo";
         self::hanldeDotEnv();
         if($ifNotAuthRedirectTo=="default_from_.env")
             $defaultRouteToIfNotLogin = getenv('DEFAULT_REDIRECT_IF_NOT_AUTH');
         else 
             $defaultRouteToIfNotLogin = $ifNotAuthRedirectTo;
 
-        $class = $controllerAction[0];
         Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction,$authType,$defaultRouteToIfNotLogin];
     }
 
@@ -94,17 +96,27 @@ class Router
         if ($request->isGet()) {
             $pattern = self::matchPattern($method, $path);
             if ($pattern) {
+
                 $actions = self::$routes[$method][$pattern];
-                $controller = $actions[0][0];
-                $action = $actions[0][1];
-                // if($actions[1]=="!auth") echo $actions[1];
-                // if($request->isLogin()) echo "Yes";
 
                 if( $actions[1] == "auth" ) {
                     if(!$request->isLogin() ) 
                     return $response->redirect($actions[2]);
                 } 
                 elseif($actions[1]== "!auth" ) if($request->isLogin() ) return $response->redirect($actions[2]);
+
+                $callable = $actions[0];
+                if( !is_array($callable) ){
+                    if(!is_callable($callable)){
+                        echo "$callable function cannot be called. Please check the function";
+                        return;
+                    }
+                    return call_user_func_array($callable,[$request,$response,self::extractParams($pattern,$path)]);
+                }//if not array
+                $controller = $actions[0][0];
+                $action = $actions[0][1];
+                // if($actions[1]=="!auth") echo $actions[1];
+                // if($request->isLogin()) echo "Yes";
 
                 // return $this->callAction($action, $this->extractParams($pattern, $uri));
                 if (class_exists($controller) && method_exists($controller, $action)) {
@@ -141,6 +153,15 @@ class Router
                     return $response->redirect($controllerAction[2]);
 
                 } 
+
+                $callable = $controllerAction[0];
+                if( !is_array($callable) ){
+                    if(!is_callable($callable)){
+                        echo "$callable function cannot be called. Please check the function";
+                        return;
+                    }
+                    return call_user_func_array($callable,[$request,$response]);
+                }//if not array
 
                 $controller = $controllerAction[0][0];
                 $action = $controllerAction[0][1];
