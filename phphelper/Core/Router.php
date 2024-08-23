@@ -71,6 +71,7 @@ class Router
       
         self::hanldeDotEnv();
         $request = Request::getInstance();
+        
         $response = Response::getInstance();
         $method = $request->method();
         $path = $request->path();
@@ -104,7 +105,13 @@ class Router
             $controllerAction = Router::$routes[$method][$path];
 
             if (is_array($controllerAction) && isset($controllerAction[0][0]) && isset($controllerAction[0][1])) {
-                if($controllerAction[1]) return $response->redirect($controllerAction[2]);
+                if($controllerAction[1]){
+
+                    if($request->isLogin() )
+
+                    return $response->redirect($controllerAction[2]);
+
+                } 
 
                 $controller = $controllerAction[0][0];
                 $action = $controllerAction[0][1];
