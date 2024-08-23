@@ -28,7 +28,7 @@ class Router
         // return '#^' . preg_replace('/{(\w+)}/', '(?P<$1>\w+)', $pattern) . '$#u';
     }
 
-    public static function get($path, $controllerAction,$isAuth=false,$ifNotAuthRedirectTo='default_from_.env')
+    public static function get($path, $controllerAction,$authType="any",$ifNotAuthRedirectTo='default_from_.env')
     {
         self::hanldeDotEnv();
         if($ifNotAuthRedirectTo=="default_from_.env")
@@ -37,10 +37,10 @@ class Router
             $defaultRouteToIfNotLogin = $ifNotAuthRedirectTo;
 
         $class = $controllerAction[0];
-        Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction,$isAuth,$defaultRouteToIfNotLogin];
+        Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction,$authType,$defaultRouteToIfNotLogin];
     }
 
-    public static function post($path, $controllerAction,$isAuth=false,$ifNotAuthRedirectTo='default_from_.env')
+    public static function post($path, $controllerAction,$authType="any",$ifNotAuthRedirectTo='default_from_.env')
     {
         self::hanldeDotEnv();
         if($ifNotAuthRedirectTo=="default_from_.env")
@@ -50,7 +50,7 @@ class Router
         
 
 
-        Router::$routes['POST'][$path] = [$controllerAction,$isAuth,$defaultRouteToIfNotLogin];
+        Router::$routes['POST'][$path] = [$controllerAction,$authType,$defaultRouteToIfNotLogin];
     }
 
     public static function matchPattern($method, $uri)
@@ -97,7 +97,14 @@ class Router
                 $actions = self::$routes[$method][$pattern];
                 $controller = $actions[0][0];
                 $action = $actions[0][1];
-                if( $actions[1] )  if(!$request->isLogin() ) return $response->redirect($actions[2]);
+                // if($actions[1]=="!auth") echo $actions[1];
+                // if($request->isLogin()) echo "Yes";
+
+                if( $actions[1] == "auth" ) {
+                    if(!$request->isLogin() ) 
+                    return $response->redirect($actions[2]);
+                } 
+                elseif($actions[1]== "!auth" ) if($request->isLogin() ) return $response->redirect($actions[2]);
 
                 // return $this->callAction($action, $this->extractParams($pattern, $uri));
                 if (class_exists($controller) && method_exists($controller, $action)) {
@@ -120,9 +127,16 @@ class Router
             $controllerAction = Router::$routes[$method][$path];
 
             if (is_array($controllerAction) && isset($controllerAction[0][0]) && isset($controllerAction[0][1])) {
-                if($controllerAction[1]){
+               if($controllerAction[1] == "auth"){
 
                     if(!$request->isLogin() )
+
+                    return $response->redirect($controllerAction[2]);
+
+                } 
+                elseif($controllerAction[1] == "!auth"){
+
+                    if($request->isLogin() )
 
                     return $response->redirect($controllerAction[2]);
 
