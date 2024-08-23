@@ -1,0 +1,20 @@
+<?php
+error_reporting(1);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once 'vendor/autoload.php';
+
+
+use Phphelper\Core\Router;
+
+// require_once 'app/routes/routes.php';
+
+// Router::get('/',[])
+
+
+// Router::get('/',[HomeController::class,'index']);
+
+
+Router::startRouting();
+

@@ -12,6 +12,10 @@ class Router
         'GET' => [],
         'POST' => []
     ];
+    private static $defaultRouteToIfNotLogin = getenv('DEFAULT_REDIRECT_IF_NOT_AUTH');
+
+  
+
 
 
     private static function compilePattern($pattern)
@@ -24,15 +28,15 @@ class Router
         // return '#^' . preg_replace('/{(\w+)}/', '(?P<$1>\w+)', $pattern) . '$#u';
     }
 
-    public static function get($path, $controllerAction)
+    public static function get($path, $controllerAction,$isAuth=false,$ifNotAuthRedirectTo=self::$defaultRouteToIfNotLogin)
     {
         $class = $controllerAction[0];
-        Router::$routes['GET'][self::compilePattern($path)] = $controllerAction;
+        Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction,$isAuth,$ifNotAuthRedirectTo];
     }
 
-    public static function post($path, $controllerAction)
+    public static function post($path, $controllerAction,$isAuth=false,$ifNotAuthRedirectTo=self::$defaultRouteToIfNotLogin)
     {
-        Router::$routes['POST'][$path] = $controllerAction;
+        Router::$routes['POST'][$path] = [$controllerAction,$isAuth,$ifNotAuthRedirectTo];
     }
 
     public static function matchPattern($method, $uri)
@@ -58,7 +62,7 @@ class Router
         $dotenv->load();
         // print_r($out);
     
-        $dotenv->required(['DB_HOST','DB_DATABASE','DB_USERNAME','DB_PASSWORD','RENDER_LAYOUTS_BY_DEFAULT','HEADER_LAYOUT_PATH','FOOTER_LAYOUT_PATH','ALLOWED_IMAGE_EXTENSIONS','IMAGE_UPLOAD_DIRECTORY']);
+        $dotenv->required(['DB_HOST','DEFAULT_REDIRECT_IF_NOT_AUTH','DB_DATABASE','DB_USERNAME','DB_PASSWORD','RENDER_LAYOUTS_BY_DEFAULT','HEADER_LAYOUT_PATH','FOOTER_LAYOUT_PATH','ALLOWED_IMAGE_EXTENSIONS','IMAGE_UPLOAD_DIRECTORY']);
         // print_r(apache_getenv("DB_HOST"));
     }
 
@@ -75,8 +79,9 @@ class Router
             $pattern = self::matchPattern($method, $path);
             if ($pattern) {
                 $actions = self::$routes[$method][$pattern];
-                $controller = $actions[0];
-                $action = $actions[1];
+                $controller = $actions[0][0];
+                $action = $actions[0][1];
+                if($action[1]) return $response->redirect($action[2]);
 
                 // return $this->callAction($action, $this->extractParams($pattern, $uri));
                 if (class_exists($controller) && method_exists($controller, $action)) {
@@ -98,9 +103,12 @@ class Router
         if (isset(Router::$routes[$method][$path])) {
             $controllerAction = Router::$routes[$method][$path];
 
-            if (is_array($controllerAction) && isset($controllerAction[0]) && isset($controllerAction[1])) {
-                $controller = $controllerAction[0];
-                $action = $controllerAction[1];
+            if (is_array($controllerAction) && isset($controllerAction[0][0]) && isset($controllerAction[0][1])) {
+                if($controllerAction[1]) return $response->redirect($controllerAction[2]);
+
+                $controller = $controllerAction[0][0];
+                $action = $controllerAction[0][1];
+
                 if (class_exists($controller) && method_exists($controller, $action)) {
                     $controllerInstance = new $controller();
                     return call_user_func_array([$controllerInstance, $action], [$request, $response]);
