@@ -73,7 +73,7 @@ class Response {
 
     // Send the response
     private function send() {
-        echo __DIR__;
+        // echo __DIR__;
         // Set HTTP status code
         http_response_code($this->statusCode);
 
