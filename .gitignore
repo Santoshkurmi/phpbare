@@ -5,3 +5,4 @@ index.php
 .htaccess
 .env.example
 phphelper/App/
+composer.lock

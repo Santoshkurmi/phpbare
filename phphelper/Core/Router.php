@@ -9,6 +9,7 @@ use Dotenv\Dotenv;
 
 class Router
 {
+    
     private static $routes = [
         'GET' => [],
         'POST' => []
