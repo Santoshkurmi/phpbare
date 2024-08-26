@@ -1,3 +1,7 @@
 ./vendor/
 ./views/
 ./index.php
+.env
+.htaccess
+.env.example
+phphelper/App/
