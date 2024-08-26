@@ -1,6 +1,6 @@
-./vendor/
-./views/
-./index.php
+vendor/
+views/
+index.php
 .env
 .htaccess
 .env.example
