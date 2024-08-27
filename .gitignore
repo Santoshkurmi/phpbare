@@ -6,3 +6,5 @@ index.php
 .env.example
 phphelper/App/
 composer.lock
+
+phpbare/

@@ -18,8 +18,6 @@ class Router
 
 
 
-
-
     private static function compilePattern($pattern)
     {
         // Escape slashes and replace :param with a regex for params
@@ -30,26 +28,30 @@ class Router
         // return '#^' . preg_replace('/{(\w+)}/', '(?P<$1>\w+)', $pattern) . '$#u';
     }
 
-    public static function get($path, $controllerAction, $authMiddleware = null, $pathIfMiddleWareFailed = 'default_from_.env')
+    public static function setMiddlewares($middleWaresKeyValue){
+        self::hanldeDotEnv();
+        $request =  Request::getInstance();
+        foreach($middleWaresKeyValue as $name=>$callback){
+            $request->setMiddleWare($name,$callback);
+        }//
+    }
+    public static function get($path, $controllerAction, $authMiddleware = null)
     {
 
-        // echo "HEllo";
         self::hanldeDotEnv();
-        if ($pathIfMiddleWareFailed == "default_from_.env")
-            $defaultRouteToIfNotLogin = getenv('DEFAULT_REDIRECT_IF_NOT_AUTH');
-        else
-            $defaultRouteToIfNotLogin = $pathIfMiddleWareFailed;
+        
+       $defaultRouteToIfNotLogin = null;
 
         Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction, $authMiddleware, $defaultRouteToIfNotLogin];
     }
 
-    public static function post($path, $controllerAction, $authMiddleware = null, $pathIfMiddleWareFailed = 'default_from_.env')
+    public static function post($path, $controllerAction, $authMiddleware = null)
     {
         self::hanldeDotEnv();
-        if ($pathIfMiddleWareFailed == "default_from_.env")
-            $defaultRouteToIfNotLogin = getenv('DEFAULT_REDIRECT_IF_NOT_AUTH');
-        else
-            $defaultRouteToIfNotLogin = $pathIfMiddleWareFailed;
+      
+
+       $defaultRouteToIfNotLogin = null;
+
 
         Router::$routes['POST'][$path] = [$controllerAction, $authMiddleware, $defaultRouteToIfNotLogin];
     }
@@ -81,7 +83,7 @@ class Router
         $dotenv->load();
         // print_r($out);
 
-        $dotenv->required(['DB_HOST', 'DEFAULT_REDIRECT_IF_NOT_AUTH', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'RENDER_LAYOUTS_BY_DEFAULT', 'HEADER_LAYOUT_PATH', 'FOOTER_LAYOUT_PATH', 'ALLOWED_IMAGE_EXTENSIONS', 'IMAGE_UPLOAD_DIRECTORY']);
+        $dotenv->required(['DB_HOST', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'RENDER_LAYOUTS_BY_DEFAULT', 'HEADER_LAYOUT_PATH', 'FOOTER_LAYOUT_PATH', 'ALLOWED_IMAGE_EXTENSIONS', 'IMAGE_UPLOAD_DIRECTORY']);
         // print_r(apache_getenv("DB_HOST"));
     }
 
@@ -101,33 +103,47 @@ class Router
                 $actions = self::$routes[$method][$pattern];
 
                 $authMiddleware = $actions[1];
-                $pathToRedirect = $actions[2];
+                // $pathToRedirect = $actions[2];
 
                 if (is_array($authMiddleware)) {
                     foreach ($authMiddleware as $eachMiddleWare) {
                         if (!is_callable($eachMiddleWare)) {
-                            die("'$eachMiddleWare' is not a proper middeware. Exiting the program");
+                            die("'$eachMiddleWare' is not a proper middeware for GET Router '$path'. Exiting the program");
                         }
-                        if (!call_user_func_array($eachMiddleWare, [$request]))
-                            return $response->redirect($pathToRedirect);
+                        call_user_func_array($eachMiddleWare, [$request,$response]);
+                            // return $response->redirect($pathToRedirect);
                     }//looping each middleware
                 }//if middleware are in array
                 else if (is_callable($authMiddleware)) {
-                    if (!call_user_func_array($authMiddleware, [$request]))
-                        return $response->redirect($pathToRedirect);
+                    call_user_func_array($authMiddleware, [$request,$response]);
+                        //  $response->redirect($pathToRedirect);
                 }//if callable
+                // else if(is_string($authMiddleware))
                 else if ($authMiddleware != null) {
-                    die("'$authMiddleware' is not a proper middeware. Exiting the program");
+                    die("'$authMiddleware' is not a proper middeware for GET Router '$path'. Exiting the program");
                 }
 
 
                 $callable = $actions[0];
                 if (!is_array($callable)) {
-                    if (!is_callable($callable)) {
-                        echo "$callable function cannot be called. Please check the function";
-                        return;
+                  
+                    if(is_string($callable)){
+                        $full_path = getenv('VIEWS_DIR').$callable.'.php';
+                        if (file_exists($full_path) ){
+                            return $response->render($callable);
+                            // exit();
+                        }//if file exists then
+                        else {
+                            die("'$callable' view in routing does not exists for GET Router '$path'.Please check the path at $full_path");
+                        }
+                    }//if string
+
+                    else if (is_callable($callable)) {
+                        return call_user_func_array($callable, [$request, $response, self::extractParams($pattern, $path)]);
                     }
-                    return call_user_func_array($callable, [$request, $response, self::extractParams($pattern, $path)]);
+                    else{
+                        die("'$callable' function cannot be called. Please check the function");
+                    }
                 }//if not array
                 $controller = $actions[0][0];
                 $action = $actions[0][1];
@@ -164,13 +180,13 @@ class Router
                     if (!is_callable($eachMiddleWare)) {
                         die("'$eachMiddleWare' is not a proper middeware. Exiting the program");
                     }
-                    if (!call_user_func_array($eachMiddleWare, [$request]))
-                        return $response->redirect($pathToRedirect);
+                    call_user_func_array($eachMiddleWare, [$request,$response]);
+                        // return $response->redirect($pathToRedirect);
                 }//looping each middleware
             }//if middleware are in array
             else if (is_callable($authMiddleware)) {
-                if (!call_user_func_array($authMiddleware, [$request]))
-                    return $response->redirect($pathToRedirect);
+                call_user_func_array($authMiddleware, [$request,$response]);
+                    // return $response->redirect($pathToRedirect);
             }//if callable
             else if ($authMiddleware != null) {
                 die("'$authMiddleware' is not a proper middeware. Exiting the program");

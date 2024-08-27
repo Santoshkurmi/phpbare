@@ -87,11 +87,14 @@ class Response {
         if ($this->viewPath) {
             // Extract data to variables
             extract($this->data);
+            
             // $data = $this->data;
-            $request = Request::getInstance();
-            $auth = $request->isLogin();
-            $user = $request->getUser();
+            $req = Request::getInstance();
+
+            $auth = $req->isLogin();
+            $user = $req->getUser();
             $viewDirectory = getenv('VIEWS_DIR');
+
 
             if($this->renderLayouts){
             if($this->header)
@@ -121,6 +124,8 @@ class Response {
         } elseif ($this->data !== null) {
             echo json_encode($this->data);
         }
+
+        exit();
     }
 }
 

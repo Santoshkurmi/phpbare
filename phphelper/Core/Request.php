@@ -3,18 +3,30 @@
 namespace Phphelper\Core;
 
 use Phphelper\Core\Database;
+#[\AllowDynamicProperties]
 class Request {
     private $data;
     private static $instance = null;
     private $files;
+    private $middleWares = [];
     // private $config;
 
+
+    public function setMiddleWare($name,$callback){
+        $response = Response::getInstance();
+        $this->$name = call_user_func($callback,$this,$response);
+    }
+
+    public function getData(){
+        return $this->data;
+    }
     private function __construct() {
         session_start(); // Start the session
         // $this->config = new Config();
 
         // Merge GET, POST, and other request data into a single array
         $this->data = array_merge($_GET, $_POST);
+        
         // $this->files = $_FILES;
     }
     public static function getInstance() {
@@ -36,7 +48,10 @@ class Request {
 
     // Magic method to handle dynamic property access
     public function __get($name) {
-        return $this->data[$name] ?? null; // Return the value if it exists, otherwise return null
+
+        if( isset($this->data[$name]) )
+            return htmlspecialchars($this->data[$name], ENT_QUOTES, 'UTF-8');
+        else null;
     }
 
     // Method to check if a request parameter exists
@@ -85,10 +100,10 @@ class Request {
         if(!$this->isImage($name)) return false;
         $imageAllowedExtensions = explode(',',getenv('ALLOWED_IMAGE_EXTENSIONS'));
         // print_r($imageAllowedExtensions);
-        return in_array($this->getFileExtension($name),$imageAllowedExtensions);
+        return in_array( $this->getFileExtension($name),$imageAllowedExtensions);
     }
 
-    public function setupImageUploadDirectory(){
+    private function setupImageUploadDirectory(){
         $imageUploadDirectory = getenv('IMAGE_UPLOAD_DIRECTORY');
         // echo $imageUploadDirectory;
         if (!is_dir($imageUploadDirectory)) {
@@ -99,7 +114,7 @@ class Request {
         }
     }
 
-    public function uploadImage($name){
+    public function uploadImage($name,$path=''){
         $this->setupImageUploadDirectory();
 
         $sourcePath = $this->getTempPathOfFile($name);
@@ -107,7 +122,7 @@ class Request {
         $imageName = $this->getFile($name)['name'].microtime(true);
         $hashedName = hash('sha256',$imageName).".".$this->getFileExtension($name);
 
-        $destLocation = getenv('IMAGE_UPLOAD_DIRECTORY').$hashedName;
+        $destLocation = getenv('IMAGE_UPLOAD_DIRECTORY').$path.$hashedName;
         $isUploaded =  move_uploaded_file($sourcePath,$destLocation);
         if($isUploaded) return $hashedName;
         else return null;
