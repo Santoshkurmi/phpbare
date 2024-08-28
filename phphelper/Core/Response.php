@@ -6,6 +6,7 @@ class Response {
     private static $instance = null;
     private $headers = [];
     private $data = null;
+    
     private $viewPath = null;
     private $renderLayouts = true;
     // private $config;
@@ -65,7 +66,10 @@ class Response {
         $this->send();
     }
 
-     public function redirect($url, $statusCode = 302) {
+     public function redirect($url =null,$data = [] ,$statusCode=302) {
+        if($url==null)
+            $url = getallheaders()['Referer'];
+        $_SESSION['data'] = $data;
         http_response_code($statusCode);
         header('Location: ' . $url);
         exit(); // Stop further script execution
@@ -87,7 +91,10 @@ class Response {
         if ($this->viewPath) {
             // Extract data to variables
             extract($this->data);
-            
+            if( isset($_SESSION['data']) )
+                extract($_SESSION['data']);
+
+                unset($_SESSION['data']);
             // $data = $this->data;
             $req = Request::getInstance();
 

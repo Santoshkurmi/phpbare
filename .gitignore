@@ -8,3 +8,6 @@ phphelper/App/
 composer.lock
 
 phpbare/
+test/
+home.php
+index.php
