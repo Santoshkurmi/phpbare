@@ -5,6 +5,7 @@ namespace Phphelper\Core;
 
 use Closure;
 use Dotenv\Dotenv;
+use ReflectionClass;
 
 
 class Router
@@ -15,7 +16,13 @@ class Router
         'POST' => []
     ];
     private static $env = null;
+    private static $middlewares = [];
 
+
+    public static function addMiddleWare($name,$middleware){
+        if(!is_callable($middleware)) die("Middleware '$name' set in routing is invalid");
+        self::$middlewares[$name] = $middleware;
+    }
 
 
     private static function compilePattern($pattern)
@@ -28,29 +35,136 @@ class Router
         // return '#^' . preg_replace('/{(\w+)}/', '(?P<$1>\w+)', $pattern) . '$#u';
     }
 
-    public static function setMiddlewares($middleWaresKeyValue){
+
+
+private static function getAllControllerClasses(string $directory): array
+{
+    $controllerClasses = [];
+
+    // Assuming all your controllers are in a directory, e.g., `app/Controllers`
+    foreach (glob($directory . '*.php') as $filename) {
+        // Include the file to load the class
+        require_once $filename;
+
+        // Extract the class name from the file path
+        $className = basename($filename, '.php');
+
+        // Add the fully qualified class name to the list
+        $controllerClasses[] = 'App\\Controllers\\' . $className;
+    }
+
+    return $controllerClasses;
+}
+
+
+private static function handleAttributeRouting()
+{
+    $controllers = self::getAllControllerClasses(getenv('CONTROLLER_PATH'));
+   
+    foreach ($controllers as $controllerClass) {
+        $reflectionClass = new ReflectionClass($controllerClass);
+
+        foreach ($reflectionClass->getMethods() as $method) {
+            $attributes = $method->getAttributes(Route::class);
+          
+            foreach ($attributes as $attribute) {
+                $route = $attribute->newInstance();
+                $methodReq = $route->method;
+                $path = $route->path;
+                if( strtolower($methodReq) == "post" ){
+
+                    Router::post($path,[$controllerClass,$method->name],$route->middleware);
+                }else{
+
+                    // print_r($route->middleware);
+                    
+                    Router::get($path,[$controllerClass,$method->name],$route->middleware);
+
+                }
+
+
+                
+            }//attributes
+        }//attributes
+    }//loo
+
+    // echo "404 Not Found";
+}
+
+
+    private static function setMiddlewares($middleWaresKeyValue){
         self::hanldeDotEnv();
         $request =  Request::getInstance();
         foreach($middleWaresKeyValue as $name=>$callback){
             $request->setMiddleWare($name,$callback);
         }//
     }
-    public static function get($path, $controllerAction, $authMiddleware = null)
+
+
+
+    public static function get($path, $controllerAction, $middlewareName = null)
     {
 
         self::hanldeDotEnv();
         
        $defaultRouteToIfNotLogin = null;
+        $authMiddleware = null;
+        // print_r('hello');
+        // print_r($middlewareName);
+       if(!$middlewareName ==null){
+            if(is_string($middlewareName)){
+                if(!isset(self::$middlewares[$middlewareName])) die("Middleware name `$middlewareName` in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                $actual = self::$middlewares[$middlewareName];
+                if( !is_callable($actual) ) die("Middleware name `$middlewareName` is invalid in in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                $authMiddleware = $actual;
+            }//if string
+            else if (is_array($middlewareName)){
+                $authMiddleware = [];
+                foreach($middlewareName as $middle ){
+                    if(!isset(self::$middlewares[$middle])) die("Middleware name `$middle` in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+
+                    $actual = self::$middlewares[$middle];
+                    if( !is_callable($actual) ) die("Middleware name `$middle` is invalid in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                    $authMiddleware[] = $actual;
+                }//
+            }//if array
+            else{
+                die("Middleware `$middlewareName` is invalid in routing");
+            }
+       }//if not null
+
+    //    print_R($authMiddleware);
 
         Router::$routes['GET'][self::compilePattern($path)] = [$controllerAction, $authMiddleware, $defaultRouteToIfNotLogin];
     }
 
-    public static function post($path, $controllerAction, $authMiddleware = null)
+    public static function post($path, $controllerAction, $middlewareName = null)
     {
         self::hanldeDotEnv();
       
 
        $defaultRouteToIfNotLogin = null;
+       $authMiddleware = [];
+       if(!$middlewareName ==null){
+            if(is_string($middlewareName)){
+                if(!isset(self::$middlewares[$middlewareName])) die("Middleware name `$middlewareName` is not found in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                $actual = self::$middlewares[$middlewareName];
+                if( !is_callable($actual) ) die("Middleware name `$middlewareName` is invalid in in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                $authMiddleware = $actual;
+            }//if string
+            else if (is_array($middlewareName)){
+                $authMiddleware = [];
+                foreach($middlewareName as $middle ){
+                    if(!isset(self::$middlewares[$middle])) die("Middleware name `$middle` is not found in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                    $actual = self::$middlewares[$middle];
+                    if( !is_callable($actual) ) die("Middleware name `$middle` is invalid in in class `$controllerAction[0] in method `$controllerAction[1]` not found");
+                    $authMiddleware[] = $actual;
+                }//
+            }//if array
+            else{
+                die("Middleware `$middlewareName` is invalid in routing");
+            }
+       }//if not null
 
 
         Router::$routes['POST'][$path] = [$controllerAction, $authMiddleware, $defaultRouteToIfNotLogin];
@@ -90,6 +204,9 @@ class Router
     public static function startRouting()
     {
 
+        $isAttributeRouting  = filter_var(getenv('ENABLE_ATTRIBUTE_ROUTING'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if($isAttributeRouting)
+            self::handleAttributeRouting();
         $request = Request::getInstance();
 
         $response = Response::getInstance();
