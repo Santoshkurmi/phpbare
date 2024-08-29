@@ -6,10 +6,17 @@ namespace Phphelper\Core;
 use Closure;
 use Dotenv\Dotenv;
 use ReflectionClass;
+use Attribute;
 
-
+#[Attribute(Attribute::TARGET_METHOD)]
 class Router
 {
+
+    public function __construct(
+        public string $path,
+        public string $method = 'GET',
+        public  $middleware = null
+    ) {}
     
     private static $routes = [
         'GET' => [],
@@ -65,7 +72,7 @@ private static function handleAttributeRouting()
         $reflectionClass = new ReflectionClass($controllerClass);
 
         foreach ($reflectionClass->getMethods() as $method) {
-            $attributes = $method->getAttributes(Route::class);
+            $attributes = $method->getAttributes(Router::class);
           
             foreach ($attributes as $attribute) {
                 $route = $attribute->newInstance();

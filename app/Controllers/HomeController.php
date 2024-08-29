@@ -3,7 +3,7 @@
 
 namespace App\Controllers;
 use Phphelper\Core\Response;
-use Phphelper\Core\Route;
+use Phphelper\Core\Router;
 
 
 $auth = function ($req,Response $response){
@@ -12,13 +12,13 @@ $auth = function ($req,Response $response){
 
 class HomeController{
 
-    #[Route(path:'/dog',method:'GET',middleware:['auth'])]
+    #[Router(path:'/dog',method:'GET',middleware:['auth'])]
     public function index(){
         echo "Hello";
     }//home
 
 
-    #[Route(path:'/cat',method:'GET',middleware:['auth','hello'])]
+    #[Router(path:'/cat',method:'GET',middleware:['auth','hello'])]
     public function man(){
         echo "man";
     }//home
