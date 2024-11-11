@@ -1,5 +1,11 @@
 # This is a php library  as a lightweight tool to create web application
 
+This library is available in composer that can be installed using composer.
+```bash
+composer require phphelper/phphelper
+```
+This library name is `phphelper`
+
 - This can be used for creating web application having routing,controller,middleware,mysql database,request,response handling,authenciation in better way.
 
 - It is created only for learning purpose only.
